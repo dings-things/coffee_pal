@@ -19,14 +19,8 @@ app = App(token=settings.SLACK_BOT_TOKEN)
 logger = logging.getLogger(__name__)
 
 
-# 모든 요청을 로깅하는 핸들러
-@app.middleware
-def log_request(logger, body, next):
-    logger.info(body)
-    return next()
-
-
-# app_home_opened 이벤트 핸들러 등록
+###################################################### EVENT ######################################################
+## EVENT : 1. 앱 홈 화면 View
 @app.event("app_home_opened")
 def handle_app_home_opened(
     event: Union[
@@ -44,119 +38,8 @@ def handle_app_home_opened(
     )
 
 
-# def _selected_member_exists(body: dict) -> bool:
-#     if body["view"]["blocks"][2][]
-
-
-# 버튼 액션 핸들러 등록
-# @app.view("suggest_coffee_chat_button")
-@app.action("suggest_coffee_chat_button")
-def handle_random_coffee_chat_button(
-    ack, body, client: WebClient = None
-) -> SlackResponse:
-    ack()
-    try:
-        # 모달 열기
-        return client.views_open(
-            trigger_id=body["trigger_id"],
-            view=templates.action.SUGGEST_COFFEE_CHAT,
-        )
-    except SlackApiError as e:
-        logger.info(f"Error opening modal: {e}")
-
-
-# 랜덤 커피챗 제안 버튼 액션 핸들러 등록
-@app.action("random_coffee_chat_button")
-def handle_random_coffee_chat_button(
-    ack, body, client: WebClient = None
-) -> SlackResponse:
-    ack()
-    try:
-        # 랜덤으로 커피챗 제안 로직
-        return client.views_open(
-            trigger_id=body["trigger_id"],
-            view=templates.action.SELECT_CHANNEL,
-        )
-    except SlackApiError as e:
-        logger.info(f"Error handling random coffee chat: {e}")
-
-
-# 특정 채널의 모든 사용자 ID 가져오기
-def get_all_channel_members(client: WebClient, channel_id: str):
-    members = []
-    cursor = None
-
-    while True:
-        try:
-            if cursor:
-                response = client.conversations_members(
-                    channel=channel_id, cursor=cursor
-                )
-            else:
-                response = client.conversations_members(channel=channel_id)
-
-            members.extend(response["members"])
-
-            cursor = response.get("response_metadata", {}).get("next_cursor")
-            if not cursor:
-                break
-
-        except SlackApiError as e:
-            logger.error(f"Error fetching channel members: {e.response['error']}")
-            break
-
-    return members
-
-
-@app.view("select_random_coffee_chat_modal")
-def handle_select_random_coffee_chat_modal_submission(
-    ack, body, client: WebClient = None
-):
-    ack()
-    try:
-        channel_id = body["view"]["state"]["values"]["channel_select"]["channel"][
-            "selected_channel"
-        ]
-        members = get_all_channel_members(client, channel_id)
-        selected_member = random.choice(members)
-        # member 중 자신 제외 (자신은 커피챗 대상이 될 수 없음)
-        # members.remove(body["user"]["id"])
-        view = templates.action.SUGGEST_RANDOM_COFFEE_CHAT(
-            selected_member, json.dumps({"members": members})
-        )
-        client.views_open(trigger_id=body["trigger_id"], view=view)
-
-    except SlackApiError as e:
-        logger.info(f"Error handling modal submission: {e}")
-
-
-@app.action("roll_button")
-def handle_roll_button(ack, body, client: WebClient):
-    ack()
-    try:
-        private_metadata = body["view"]["private_metadata"]
-        members = json.loads(private_metadata)["members"]
-        selected_member = random.choice(members)
-
-        # 임의의 접미사를 block_id에 추가
-        block_id_suffix = f"-{random.randint(0, 9999)}"
-        updated_view = templates.action.SUGGEST_RANDOM_COFFEE_CHAT(
-            selected_member, private_metadata
-        )
-
-        # block_id에 접미사 추가
-        for block in updated_view["blocks"]:
-            if "block_id" in block:
-                block["block_id"] += block_id_suffix
-
-        client.views_update(
-            view_id=body["view"]["id"],
-            view=updated_view,
-        )
-    except SlackApiError as e:
-        logger.info(f"Error handling roll button: {e}")
-
-
+###################################################### VIEW ######################################################
+## VIEW : 1. 커피챗 제안 모달
 @app.view("suggest_coffee_chat_modal")
 def handle_modal_submission(ack, body, client: WebClient = None):
     ack()
@@ -189,17 +72,30 @@ def handle_modal_submission(ack, body, client: WebClient = None):
         logger.info(f"Error handling modal submission: {e}")
 
 
-def __convert_unix_to_kst(unix_timestamp):
-    # UTC 시간대를 기준으로 datetime 객체 생성
-    dt_utc = datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
-    # KST 시간대 설정 (UTC+9)
-    kst = timezone(timedelta(hours=9))
-    # KST 시간대로 변환
-    dt_kst = dt_utc.astimezone(kst)
-    # 원하는 형식으로 포맷팅
-    return dt_kst.strftime("%Y년 %m월 %d일 %H시 %M분")
+## VIEW : 2. 랜덤 커피챗 선택 모달
+@app.view("select_random_coffee_chat_modal")
+def handle_select_random_coffee_chat_modal_submission(
+    ack, body, client: WebClient = None
+):
+    ack()
+    try:
+        channel_id = body["view"]["state"]["values"]["channel_select"]["channel"][
+            "selected_channel"
+        ]
+        members = get_all_channel_members(client, channel_id)
+        selected_member = random.choice(members)
+        # member 중 자신 제외 (자신은 커피챗 대상이 될 수 없음)
+        # members.remove(body["user"]["id"])
+        view = templates.action.SELECT_RANDOM_COFFEE_CHAT(
+            selected_member, json.dumps({"members": members})
+        )
+        client.views_open(trigger_id=body["trigger_id"], view=view)
+
+    except SlackApiError as e:
+        logger.info(f"Error handling modal submission: {e}")
 
 
+## VIEW : 3. 랜덤 커피챗 제안 모달
 @app.view("suggest_random_coffee_chat_modal")
 def handle_random_modal_submission(ack, body, client: WebClient = None):
     ack()
@@ -241,6 +137,68 @@ def handle_random_modal_submission(ack, body, client: WebClient = None):
         logger.info(f"Error handling modal submission: {e}")
 
 
+###################################################### ACTION ######################################################
+## ACTION : 1. 커피 챗 제안하기 버튼 상호작용
+@app.action("suggest_coffee_chat_button")
+def handle_random_coffee_chat_button(
+    ack, body, client: WebClient = None
+) -> SlackResponse:
+    ack()
+    try:
+        # 모달 열기
+        return client.views_open(
+            trigger_id=body["trigger_id"],
+            view=templates.action.SUGGEST_COFFEE_CHAT,
+        )
+    except SlackApiError as e:
+        logger.info(f"Error opening modal: {e}")
+
+
+## ACTION : 2. 랜덤 커피챗 제안하기 버튼 상호작용
+@app.action("random_coffee_chat_button")
+def handle_random_coffee_chat_button(
+    ack, body, client: WebClient = None
+) -> SlackResponse:
+    ack()
+    try:
+        # 랜덤으로 커피챗 제안 로직
+        return client.views_open(
+            trigger_id=body["trigger_id"],
+            view=templates.action.SELECT_CHANNEL,
+        )
+    except SlackApiError as e:
+        logger.info(f"Error handling random coffee chat: {e}")
+
+
+## ACTION : 3. 채널 인원 중 랜덤 인원 한명 선별하기 버튼 상호작용
+@app.action("roll_button")
+def handle_roll_button(ack, body, client: WebClient):
+    ack()
+    try:
+        private_metadata = body["view"]["private_metadata"]
+        members = json.loads(private_metadata)["members"]
+        selected_member = random.choice(members)
+
+        # 임의의 접미사를 block_id에 추가
+        block_id_suffix = f"-{random.randint(0, 9999)}"
+        updated_view = templates.action.SELECT_RANDOM_COFFEE_CHAT(
+            selected_member, private_metadata
+        )
+
+        # block_id에 접미사 추가
+        for block in updated_view["blocks"]:
+            if "block_id" in block:
+                block["block_id"] += block_id_suffix
+
+        client.views_update(
+            view_id=body["view"]["id"],
+            view=updated_view,
+        )
+    except SlackApiError as e:
+        logger.info(f"Error handling roll button: {e}")
+
+
+## ACTION : 4. 커피챗 일정 완료 버튼 상호작용
 @app.action("coffee_chat_complete")
 def handle_coffee_chat_complete(ack, body, client: WebClient = None):
     # 버튼 클릭 이벤트 확인
@@ -276,6 +234,51 @@ def handle_coffee_chat_complete(ack, body, client: WebClient = None):
         logger.info(f"Reminder set for {sender} at {reminder_time_dt}")
     except SlackApiError as e:
         logger.info(f"Error handling modal submission: {e}")
+
+
+# 특정 채널의 모든 사용자 ID 가져오기
+def get_all_channel_members(client: WebClient, channel_id: str):
+    members = []
+    cursor = None
+
+    while True:
+        try:
+            if cursor:
+                response = client.conversations_members(
+                    channel=channel_id, cursor=cursor
+                )
+            else:
+                response = client.conversations_members(channel=channel_id)
+
+            members.extend(response["members"])
+
+            cursor = response.get("response_metadata", {}).get("next_cursor")
+            if not cursor:
+                break
+
+        except SlackApiError as e:
+            logger.error(f"Error fetching channel members: {e.response['error']}")
+            break
+
+    return members
+
+
+def __convert_unix_to_kst(unix_timestamp):
+    # UTC 시간대를 기준으로 datetime 객체 생성
+    dt_utc = datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
+    # KST 시간대 설정 (UTC+9)
+    kst = timezone(timedelta(hours=9))
+    # KST 시간대로 변환
+    dt_kst = dt_utc.astimezone(kst)
+    # 원하는 형식으로 포맷팅
+    return dt_kst.strftime("%Y년 %m월 %d일 %H시 %M분")
+
+
+# 모든 요청을 로깅하는 핸들러
+@app.middleware
+def log_request(logger, body, next):
+    logger.info(body)
+    return next()
 
 
 # 앱 실행

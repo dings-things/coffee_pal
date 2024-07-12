@@ -59,7 +59,7 @@ SUGGEST_COFFEE_CHAT = {
 }
 
 
-SUGGEST_RANDOM_COFFEE_CHAT = lambda init_member, private_metadata: {
+SELECT_RANDOM_COFFEE_CHAT = lambda init_member, private_metadata: {
     "type": "modal",
     "callback_id": "suggest_random_coffee_chat_modal",
     "title": {"type": "plain_text", "text": "랜덤 커피챗"},
