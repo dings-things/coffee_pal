@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 import json
 import random
-from typing import List, Union, Pattern, Callable, Dict, Optional, Sequence, Any
+from typing import Union, Pattern, Dict, Optional, Sequence
 from slack_bolt import App
 from slack_sdk import WebClient
 from slack_sdk.web import SlackResponse
@@ -11,7 +11,6 @@ import logging
 import templates.event, templates.action
 
 logging.basicConfig(level=logging.INFO)
-
 from config import settings
 
 
@@ -82,11 +81,11 @@ def handle_select_random_coffee_chat_modal_submission(
         channel_id = body["view"]["state"]["values"]["channel_select"]["channel"][
             "selected_channel"
         ]
-        members = get_all_channel_members(client, channel_id)
+        members = _get_all_channel_members(client, channel_id)
         selected_member = random.choice(members)
         # member 중 자신 제외 (자신은 커피챗 대상이 될 수 없음)
         # members.remove(body["user"]["id"])
-        view = templates.action.SELECT_RANDOM_COFFEE_CHAT(
+        view = templates.action.SELECT_RANDOM_COFFEE_CHAT_MODAL(
             selected_member, json.dumps({"members": members})
         )
         client.views_open(trigger_id=body["trigger_id"], view=view)
@@ -148,7 +147,7 @@ def handle_random_coffee_chat_button(
         # 모달 열기
         return client.views_open(
             trigger_id=body["trigger_id"],
-            view=templates.action.SUGGEST_COFFEE_CHAT,
+            view=templates.action.SUGGEST_COFFEE_CHAT_MODAL,
         )
     except SlackApiError as e:
         logger.info(f"Error opening modal: {e}")
@@ -164,7 +163,7 @@ def handle_random_coffee_chat_button(
         # 랜덤으로 커피챗 제안 로직
         return client.views_open(
             trigger_id=body["trigger_id"],
-            view=templates.action.SELECT_CHANNEL,
+            view=templates.action.SELECT_CHANNEL_MODAL,
         )
     except SlackApiError as e:
         logger.info(f"Error handling random coffee chat: {e}")
@@ -181,7 +180,7 @@ def handle_roll_button(ack, body, client: WebClient):
 
         # 임의의 접미사를 block_id에 추가
         block_id_suffix = f"-{random.randint(0, 9999)}"
-        updated_view = templates.action.SELECT_RANDOM_COFFEE_CHAT(
+        updated_view = templates.action.SELECT_RANDOM_COFFEE_CHAT_MODAL(
             selected_member, private_metadata
         )
 
@@ -220,24 +219,39 @@ def handle_coffee_chat_complete(ack, body, client: WebClient = None):
         # selected_date 문자열을 datetime 객체로 변환
         selected_date_dt = datetime.strptime(selected_date, "%Y년 %m월 %d일 %H시 %M분")
 
+        # 현재 시간 가져오기
+        now_dt = datetime.now()
+
         # 리마인드 시간 5분 전으로 설정
         reminder_time_dt = selected_date_dt - timedelta(minutes=5)
-        reminder_time_unix = int(reminder_time_dt.timestamp())
 
-        # 리마인드 설정
+        # 유저 클라이언트로 변경
+        client.token = settings.SLACK_USER_TOKEN
+        if reminder_time_dt < now_dt:
+            # 5분 보다 적은 시간으로 지정했을 경우 바로 알림
+            reminder_time_unix = 1
+        else:
+            # 예약 시간으로부터 5분 전을 초로 바꾸어 설정
+            reminder_time_unix = int((reminder_time_dt - now_dt).total_seconds())
+
         client.reminders_add(
-            text=f"예약된 커피 챗 알림을 드려요~ ! {selected_date}",
+            text=f"{receiver}님과 예약된 커피 챗 알림을 드려요~ ! {selected_date}",
             time=reminder_time_unix,
             user=sender,
         )
-
+        client.reminders_add(
+            text=f"{sender}님과 예약된 커피 챗 알림을 드려요~ ! {selected_date}",
+            time=reminder_time_unix,
+            user=receiver,
+        )
         logger.info(f"Reminder set for {sender} at {reminder_time_dt}")
+
     except SlackApiError as e:
-        logger.info(f"Error handling modal submission: {e}")
+        logger.error(f"Error handling modal submission: {e}")
 
 
 # 특정 채널의 모든 사용자 ID 가져오기
-def get_all_channel_members(client: WebClient, channel_id: str):
+def _get_all_channel_members(client: WebClient, channel_id: str):
     members = []
     cursor = None
 
@@ -263,7 +277,7 @@ def get_all_channel_members(client: WebClient, channel_id: str):
     return members
 
 
-def __convert_unix_to_kst(unix_timestamp):
+def __convert_unix_to_kst(unix_timestamp: float) -> str:
     # UTC 시간대를 기준으로 datetime 객체 생성
     dt_utc = datetime.fromtimestamp(unix_timestamp, tz=timezone.utc)
     # KST 시간대 설정 (UTC+9)

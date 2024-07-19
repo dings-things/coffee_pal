@@ -1,7 +1,7 @@
 import json
 
 
-SUGGEST_COFFEE_CHAT = {
+SUGGEST_COFFEE_CHAT_MODAL = {
     "type": "modal",
     "callback_id": "suggest_coffee_chat_modal",
     "title": {
@@ -59,7 +59,7 @@ SUGGEST_COFFEE_CHAT = {
 }
 
 
-SELECT_RANDOM_COFFEE_CHAT = lambda init_member, private_metadata: {
+SELECT_RANDOM_COFFEE_CHAT_MODAL = lambda init_member, private_metadata: {
     "type": "modal",
     "callback_id": "suggest_random_coffee_chat_modal",
     "title": {"type": "plain_text", "text": "랜덤 커피챗"},
@@ -99,6 +99,10 @@ SELECT_RANDOM_COFFEE_CHAT = lambda init_member, private_metadata: {
                 "type": "datetimepicker",
                 "action_id": "datetimepicker-action",
             },
+            "hint": {
+                "type": "plain_text",
+                "text": "시간은 직접 입력 가능합니다 (ex. 17:30)",
+            },
         },
         {"type": "divider"},
         {
@@ -121,7 +125,7 @@ SELECT_RANDOM_COFFEE_CHAT = lambda init_member, private_metadata: {
 }
 
 
-SELECT_CHANNEL = {
+SELECT_CHANNEL_MODAL = {
     "type": "modal",
     "callback_id": "select_random_coffee_chat_modal",
     "title": {"type": "plain_text", "text": "채널을 선택해주세요!"},
