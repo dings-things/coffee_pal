@@ -77,19 +77,6 @@ SELECT_RANDOM_COFFEE_CHAT = lambda init_member, private_metadata: {
             },
         },
         {
-            "type": "input",
-            "block_id": "pick_datetime",
-            "label": {"type": "plain_text", "text": "날짜 선택"},
-            "element": {
-                "type": "datetimepicker",
-                "action_id": "datetimepicker-action",
-            },
-            "hint": {
-                "type": "plain_text",
-                "text": "날짜를 선택하세요",
-            },
-        },
-        {
             "type": "actions",
             "block_id": "roll_action",
             "elements": [
@@ -104,6 +91,16 @@ SELECT_RANDOM_COFFEE_CHAT = lambda init_member, private_metadata: {
                 },
             ],
         },
+        {
+            "type": "input",
+            "block_id": "pick_datetime",
+            "label": {"type": "plain_text", "text": "날짜 선택"},
+            "element": {
+                "type": "datetimepicker",
+                "action_id": "datetimepicker-action",
+            },
+        },
+        {"type": "divider"},
         {
             "type": "input",
             "block_id": "message_input",

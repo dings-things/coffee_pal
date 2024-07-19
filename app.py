@@ -205,7 +205,7 @@ def handle_coffee_chat_complete(ack, body, client: WebClient = None):
     ack()
     try:
         # 클릭한 버튼의 value에서 selected_date 가져오기
-
+        receiver = body["user"]["id"]
         request_json = json.loads(body["actions"][0]["value"])
         sender = request_json["sender_user"]
         selected_date = request_json["selected_date"]
@@ -213,7 +213,7 @@ def handle_coffee_chat_complete(ack, body, client: WebClient = None):
         # 메시지 전송
         client.chat_postMessage(
             channel=sender,
-            blocks=templates.action.COMPLETION_BLOCK(sender, selected_date),
+            blocks=templates.action.COMPLETION_BLOCK(receiver, selected_date),
             text="커피챗 일정 완료 알림",
         )
 
