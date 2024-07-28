@@ -1,9 +1,9 @@
-import json
+import endpoints
 
 
-SUGGEST_COFFEE_CHAT_MODAL = {
+SUGGEST_COFFEE_CHAT = {
     "type": "modal",
-    "callback_id": "suggest_coffee_chat_modal",
+    "callback_id": endpoints.SUGGEST_COFFEE_CHAT_MODAL,
     "title": {
         "type": "plain_text",
         "text": "커피챗 제안하기 :coffee-meow:",
@@ -35,7 +35,7 @@ SUGGEST_COFFEE_CHAT_MODAL = {
             },
             "hint": {
                 "type": "plain_text",
-                "text": "날짜를 선택하세요",
+                "text": "시간은 직접 입력 가능합니다 (ex. 17:30)",
             },
         },
         {
@@ -59,9 +59,9 @@ SUGGEST_COFFEE_CHAT_MODAL = {
 }
 
 
-SELECT_RANDOM_COFFEE_CHAT_MODAL = lambda init_member, private_metadata: {
+SELECT_RANDOM_COFFEE_CHAT = lambda init_member, private_metadata: {
     "type": "modal",
-    "callback_id": "suggest_random_coffee_chat_modal",
+    "callback_id": endpoints.SUGGEST_RANDOM_COFFEE_CHAT_MODAL,
     "title": {"type": "plain_text", "text": "랜덤 커피챗"},
     "submit": {"type": "plain_text", "text": "제안하기"},
     "private_metadata": private_metadata,
@@ -82,7 +82,7 @@ SELECT_RANDOM_COFFEE_CHAT_MODAL = lambda init_member, private_metadata: {
             "elements": [
                 {
                     "type": "button",
-                    "action_id": "roll_button",
+                    "action_id": endpoints.ROLL_BUTTON,
                     "text": {
                         "type": "plain_text",
                         "text": ":game_die: 다시 랜덤 추첨하기",
@@ -125,9 +125,9 @@ SELECT_RANDOM_COFFEE_CHAT_MODAL = lambda init_member, private_metadata: {
 }
 
 
-SELECT_CHANNEL_MODAL = {
+SELECT_CHANNEL = {
     "type": "modal",
-    "callback_id": "select_random_coffee_chat_modal",
+    "callback_id": endpoints.SELECT_RANDOM_COFFEE_CHAT_MODAL,
     "title": {"type": "plain_text", "text": "채널을 선택해주세요!"},
     "blocks": [
         {
@@ -142,96 +142,3 @@ SELECT_CHANNEL_MODAL = {
     ],
     "submit": {"type": "plain_text", "text": "다음"},
 }
-
-
-SEND_SUGGESTION_BLOCK = lambda sender_user, message_blocks, selected_date: [
-    {
-        "type": "header",
-        "text": {
-            "type": "plain_text",
-            "text": f":coffee-meow: 커피챗 제안이 왔어요! :coffee-meow:",
-        },
-    },
-    {
-        "type": "section",
-        "text": {
-            "text": "동료와 함께 커피 한 잔 어떠세요? :coffee:",
-            "type": "mrkdwn",
-        },
-        "fields": [
-            {
-                "type": "mrkdwn",
-                "text": f"*신청한 사우*\n<@{sender_user}>",
-            },
-            {
-                "type": "mrkdwn",
-                "text": f"*일정*\n{selected_date}",
-            },
-        ],
-    },
-    {"type": "divider"},
-    message_blocks,
-    {
-        "type": "actions",
-        "elements": [
-            {
-                "type": "button",
-                "text": {"type": "plain_text", "text": "커피챗 일정 수락하기"},
-                "action_id": "coffee_chat_complete",
-                "value": json.dumps(
-                    {"selected_date": selected_date, "sender_user": sender_user}
-                ),
-            }
-        ],
-    },
-]
-
-SEND_CONFIRMATION_BLOCK = lambda sender_user, selected_date: [
-    {
-        "type": "section",
-        "text": {
-            "type": "mrkdwn",
-            "text": ":white_check_mark: 커피챗 일정이 수락되었어요! :white_check_mark:",
-        },
-        "fields": [
-            {
-                "type": "mrkdwn",
-                "text": f"*신청한 사우*\n<@{sender_user}>",
-            },
-            {
-                "type": "mrkdwn",
-                "text": f"*일정*\n{selected_date}",
-            },
-        ],
-    },
-    {
-        "type": "divider",
-    },
-]
-
-COMPLETION_BLOCK = lambda receiver_user, selected_date: [
-    {
-        "type": "header",
-        "text": {
-            "type": "plain_text",
-            "text": ":blanket_coffee: 상대방이 커피챗 일정을 수락했어요 :blanket_coffee:",
-        },
-    },
-    {
-        "type": "section",
-        "text": {
-            "text": "행복한 커피 타임 보내세요! :coffee-beans:",
-            "type": "mrkdwn",
-        },
-        "fields": [
-            {
-                "type": "mrkdwn",
-                "text": f"*대상*\n<@{receiver_user}>",
-            },
-            {
-                "type": "mrkdwn",
-                "text": f"*일정*\n{selected_date}",
-            },
-        ],
-    },
-]

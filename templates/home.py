@@ -1,4 +1,7 @@
-HOME_OPENED = {
+import endpoints
+
+
+OPENED = lambda reservation_blocks=None: {
     "type": "home",
     "blocks": [
         {
@@ -28,7 +31,7 @@ HOME_OPENED = {
                 "text": {"type": "plain_text", "text": "제안하기"},
                 "style": "primary",
                 "value": "suggest_coffee_chat",
-                "action_id": "suggest_coffee_chat_button",
+                "action_id": endpoints.SUGGEST_COFFEE_CHAT_BUTTON,
             },
         },
         {
@@ -71,12 +74,18 @@ HOME_OPENED = {
             "type": "header",
             "text": {"type": "plain_text", "text": ":calendar: 나의 커피챗 일정"},
         },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "현재 미구현",
-            },
-        },
-    ],
+    ]
+    + (
+        reservation_blocks
+        if reservation_blocks
+        else [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "현재 예약된 커피챗 일정이 없습니다.",
+                },
+            }
+        ]
+    ),
 }
