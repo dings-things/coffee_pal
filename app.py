@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 import json
 import random
 from typing import Union, Pattern, Dict, Optional, Sequence
+import requests
 from slack_bolt import App
 from slack_sdk import WebClient
 from slack_sdk.web import SlackResponse
@@ -9,10 +10,11 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.errors import SlackApiError
 import logging
 import templates.event, templates.action
+import aiohttp
 
 logging.basicConfig(level=logging.INFO)
 from config import settings
-
+import asyncio
 
 app = App(token=settings.SLACK_BOT_TOKEN)
 logger = logging.getLogger(__name__)
@@ -63,9 +65,12 @@ def handle_modal_submission(ack, body, client: WebClient = None):
         )
 
         # 선택된 유저에게 DM 보내기
-        client.chat_postMessage(
+        response = client.chat_postMessage(
             channel=selected_user, blocks=blocks, text="커피챗 제안이 왔어요!"
         )
+
+        print("CHECK HERE")
+        print(response)
 
     except SlackApiError as e:
         logger.info(f"Error handling modal submission: {e}")
@@ -209,6 +214,22 @@ def handle_coffee_chat_complete(ack, body, client: WebClient = None):
         sender = request_json["sender_user"]
         selected_date = request_json["selected_date"]
 
+        # 메시지 업데이트
+        # Ensure correct block structure for the update payload
+        suggestion_blocks = templates.action.SEND_CONFIRMATION_BLOCK(
+            sender, selected_date
+        )
+
+        update_payload = {
+            "replace_original": "true",
+            "blocks": suggestion_blocks,
+        }
+
+        headers = {"Content-Type": "application/json"}
+
+        # Run the async update task
+        asyncio.run(__send_async_update(body["response_url"], update_payload, headers))
+
         # 메시지 전송
         client.chat_postMessage(
             channel=sender,
@@ -235,12 +256,12 @@ def handle_coffee_chat_complete(ack, body, client: WebClient = None):
             reminder_time_unix = int((reminder_time_dt - now_dt).total_seconds())
 
         client.reminders_add(
-            text=f"{receiver}님과 예약된 커피 챗 알림을 드려요~ ! {selected_date}",
+            text=f"<@{receiver}>님과 예약된 커피 챗 알림을 드려요~ ! {selected_date}",
             time=reminder_time_unix,
             user=sender,
         )
         client.reminders_add(
-            text=f"{sender}님과 예약된 커피 챗 알림을 드려요~ ! {selected_date}",
+            text=f"<@{sender}>님과 예약된 커피 챗 알림을 드려요~ ! {selected_date}",
             time=reminder_time_unix,
             user=receiver,
         )
@@ -248,6 +269,23 @@ def handle_coffee_chat_complete(ack, body, client: WebClient = None):
 
     except SlackApiError as e:
         logger.error(f"Error handling modal submission: {e}")
+
+
+async def __send_async_update(response_url, update_payload, headers):
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            response_url, headers=headers, json=update_payload
+        ) as response:
+            if response.status != 200:
+                response_text = await response.text()
+                logger.error(
+                    f"Failed to update message using response_url: {response.status}, {response_text}"
+                )
+            else:
+                response_text = await response.text()
+                logger.info(
+                    f"Message successfully updated using response_url: {response_text}"
+                )
 
 
 # 특정 채널의 모든 사용자 ID 가져오기

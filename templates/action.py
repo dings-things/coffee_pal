@@ -186,6 +186,29 @@ SEND_SUGGESTION_BLOCK = lambda sender_user, message_blocks, selected_date: [
     },
 ]
 
+SEND_CONFIRMATION_BLOCK = lambda sender_user, selected_date: [
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": ":white_check_mark: 커피챗 일정이 수락되었어요! :white_check_mark:",
+        },
+        "fields": [
+            {
+                "type": "mrkdwn",
+                "text": f"*신청한 사우*\n<@{sender_user}>",
+            },
+            {
+                "type": "mrkdwn",
+                "text": f"*일정*\n{selected_date}",
+            },
+        ],
+    },
+    {
+        "type": "divider",
+    },
+]
+
 COMPLETION_BLOCK = lambda receiver_user, selected_date: [
     {
         "type": "header",
