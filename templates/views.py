@@ -1,7 +1,7 @@
 import endpoints
 
 
-OPENED = lambda reservation_blocks=None: {
+HOME_OPENED = lambda reservation_blocks=None: {
     "type": "home",
     "blocks": [
         {
@@ -49,7 +49,7 @@ OPENED = lambda reservation_blocks=None: {
                 "text": {"type": "plain_text", "text": "제안하기"},
                 "style": "primary",
                 "value": "random_coffee_chat",
-                "action_id": "random_coffee_chat_button",
+                "action_id": endpoints.RANDOM_COFFEE_CHAT_BUTTON,
             },
         },
         {
@@ -64,9 +64,10 @@ OPENED = lambda reservation_blocks=None: {
             },
             "accessory": {
                 "type": "button",
-                "text": {"type": "plain_text", "text": "미 구현"},
+                "text": {"type": "plain_text", "text": "제안하기"},
+                "style": "primary",
                 "value": "register_details",
-                "action_id": "register_details_button",
+                "action_id": endpoints.GROUP_COFFEE_CHAT_BUTTON,
             },
         },
         {"type": "divider"},
@@ -88,4 +89,27 @@ OPENED = lambda reservation_blocks=None: {
             }
         ]
     ),
+}
+
+MESSAGE_DETAIL = lambda target, date, message: {
+    "type": "modal",
+    "callback_id": "message_view",
+    "title": {"type": "plain_text", "text": "메시지 보기"},
+    "blocks": [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*예약자*:\n<@{target}>",
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*일시*:\n{date.strftime('%Y년 %m월 %d일 %H시 %M분')}",
+            },
+        },
+        message,
+    ],
 }

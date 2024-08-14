@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  slack-app:
+    build: .
+    container_name: slack-app
+    environment:
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - SLACK_USER_TOKEN=${SLACK_USER_TOKEN}
+      - FILE_PATH=${FILE_PATH}
+    restart: always

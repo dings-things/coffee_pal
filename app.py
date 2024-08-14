@@ -1,72 +1,32 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 import json
 import random
+from scheduler import Scheduler
 from slack_bolt import App
-from slack_sdk import WebClient
-from slack_sdk.web import SlackResponse
+from slack_sdk.web import WebClient, SlackResponse
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_bolt.context.respond.async_respond import AsyncRespond
 from slack_sdk.errors import SlackApiError
 from db.reservation import FileDB, ReservationEntity
 import logging
 import endpoints
-import templates.home, templates.blocks, templates.modals
+import templates.views, templates.blocks, templates.modals
 import utils
 
 logging.basicConfig(level=logging.INFO)
 from config import settings
+import ssl
 
-app = App(token=settings.SLACK_BOT_TOKEN)
-db = FileDB(settings.FILE_PATH)
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
+slack_client = WebClient(token=settings.SLACK_BOT_TOKEN, ssl=ssl_context)
+
+app = App(client=slack_client)
+db = FileDB(settings.FILE_PATH, settings.FILE_LOCK_PATH)
+scheduler = Scheduler(db, "23:59:59")
 logger = logging.getLogger(__name__)
-
-
-# 메시지 보기 버튼 클릭 이벤트 핸들러
-@app.action("view_message_button")
-def handle_view_message_button(ack, body, client: WebClient):
-    ack()
-    uuid = body["actions"][0]["value"]
-
-    # FileDB에서 해당 UUID의 예약 정보를 가져옵니다
-    reservation = None
-    for reservations in db.data.values():
-        for res in reservations:
-            if res.uuid == uuid:
-                reservation = res
-                break
-        if reservation:
-            break
-
-    if reservation:
-        # 메시지를 보여주는 view 생성
-        view = {
-            "type": "modal",
-            "callback_id": "message_view",
-            "title": {"type": "plain_text", "text": "메시지 보기"},
-            "blocks": [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*예약자*:\n<@{reservation.target_id}>",
-                    },
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*일시*:\n{reservation.date.strftime('%Y년 %m월 %d일 %H시 %M분')}",
-                    },
-                },
-                reservation.message,
-            ],
-        }
-
-        # View를 열기
-        try:
-            client.views_open(trigger_id=body["trigger_id"], view=view)
-        except SlackApiError as e:
-            logger.error(f"Error opening view: {e}")
 
 
 ###################################################### EVENT ######################################################
@@ -77,7 +37,7 @@ def handle_app_home_opened(event, client: WebClient) -> SlackResponse:
     # App Home 업데이트 로직
     return client.views_publish(
         user_id=user_id,  # App Home을 업데이트할 사용자 ID
-        view=templates.home.OPENED(
+        view=templates.views.HOME_OPENED(
             templates.blocks.RESERVATION_BLOCK(db.get_reservations_by_user_id(user_id))
         ),
     )
@@ -134,6 +94,56 @@ def handle_select_random_coffee_chat_modal_submission(
             selected_member, json.dumps({"members": members})
         )
         client.views_open(trigger_id=body["trigger_id"], view=view)
+
+    except SlackApiError as e:
+        logger.info(f"Error handling modal submission: {e}")
+
+
+## VIEW : 그룹 커피챗 선택 모달
+@app.view(endpoints.SELECT_GROUP_COFFEE_CHAT_MODAL)
+def handle_select_group_coffee_chat_modal_submission(ack, body, client: WebClient):
+    ack()
+    try:
+        channel_id = body["view"]["state"]["values"]["channel_select"]["channel"][
+            "selected_channel"
+        ]
+        members = _get_all_channel_members(client, channel_id)
+        view = templates.modals.SELECT_GROUP_COFFEE_CHAT(members)
+        client.views_open(trigger_id=body["trigger_id"], view=view)
+
+    except SlackApiError as e:
+        logger.info(f"Error handling modal submission: {e}")
+
+
+## VIEW : 그룹 커피챗 제안 모달
+@app.view(endpoints.SUGGEST_GROUP_COFFEE_CHAT_MODAL)
+def handle_group_modal_submission(ack, body, payload, client: WebClient):
+    ack()
+    try:
+        # 제출된 데이터 처리 로직
+        block_values: dict = payload["state"]["values"]
+        selected_users = block_values["selected_members"]["multi_users_select-action"][
+            "selected_users"
+        ]
+        message_blocks = block_values["message_input"]["rich_text_input-action"][
+            "rich_text_value"
+        ]
+        selected_datetime = utils.convert_unix_to_kst(
+            block_values["pick_datetime"]["datetimepicker-action"]["selected_date_time"]
+        )
+
+        sender_user = body["user"]["id"]  # 제출한 사용자의 ID
+
+        # 메시지 내용 구성
+        blocks = templates.blocks.SEND_SUGGESTION(
+            sender_user, message_blocks, selected_datetime
+        )
+
+        for selected_user in selected_users:
+            # 선택된 유저에게 DM 보내기
+            client.chat_postMessage(
+                channel=selected_user, blocks=blocks, text="커피챗 제안이 왔어요!"
+            )
 
     except SlackApiError as e:
         logger.info(f"Error handling modal submission: {e}")
@@ -208,6 +218,20 @@ def handle_random_coffee_chat_button(ack, body, client: WebClient) -> SlackRespo
         )
     except SlackApiError as e:
         logger.info(f"Error handling random coffee chat: {e}")
+
+
+## ACTION : 그룹 커피챗 제안하기 버튼 상호작용
+@app.action(endpoints.GROUP_COFFEE_CHAT_BUTTON)
+def handle_group_coffee_chat_button(ack, body, client: WebClient):
+    ack()
+    try:
+        # 그룹 커피챗 제안 로직
+        return client.views_open(
+            trigger_id=body["trigger_id"],
+            view=templates.modals.SELECT_GROUP_CHANNEL,
+        )
+    except SlackApiError as e:
+        logger.info(f"Error handling roll button: {e}")
 
 
 ## ACTION : 3. 채널 인원 중 랜덤 인원 한명 선별하기 버튼 상호작용
@@ -286,7 +310,13 @@ def handle_coffee_chat_complete(ack, body, client: WebClient, respond: AsyncResp
             date=selected_date_dt,
             message=body["message"]["blocks"][3],
         )
-        db.add(sender_reservation)
+        receiver_reservation = ReservationEntity(
+            target_id=sender,
+            date=selected_date_dt,
+            message=body["message"]["blocks"][3],
+        )
+        db.add(sender, sender_reservation)
+        db.add(receiver, receiver_reservation)
 
         client.reminders_add(
             text=f"<@{receiver}>님과 예약된 커피 챗 알림을 드려요~ ! {selected_date}",
@@ -302,6 +332,35 @@ def handle_coffee_chat_complete(ack, body, client: WebClient, respond: AsyncResp
 
     except SlackApiError as e:
         logger.error(f"Error handling modal submission: {e}")
+
+
+# ACTION : 5. 메시지 보기 버튼 클릭 이벤트 핸들러
+@app.action(endpoints.VIEW_MESSAGE_BUTTON)
+def handle_view_message_button(ack, body, client: WebClient):
+    ack()
+    uuid = body["actions"][0]["value"]
+
+    # FileDB에서 해당 UUID의 예약 정보를 가져옵니다
+    reservation = None
+    for reservations in db.data.values():
+        for res in reservations:
+            if res.uuid == uuid:
+                reservation = res
+                break
+        if reservation:
+            break
+
+    if reservation:
+        # 메시지를 보여주는 view 생성
+        view = templates.views.MESSAGE_DETAIL(
+            reservation.target_id, reservation.date, reservation.message
+        )
+
+        # View를 열기
+        try:
+            client.views_open(trigger_id=body["trigger_id"], view=view)
+        except SlackApiError as e:
+            logger.error(f"Error opening view: {e}")
 
 
 # 특정 채널의 모든 사용자 ID 가져오기
@@ -335,4 +394,6 @@ def _get_all_channel_members(client: WebClient, channel_id: str):
 if __name__ == "__main__":
     # SocketModeHandler를 사용하여 앱을 실행합니다.
     handler = SocketModeHandler(app, settings.SLACK_APP_TOKEN)
+    scheduler.start()
+
     handler.start()

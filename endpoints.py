@@ -1,9 +1,13 @@
 HOME_OPEND = "app_home_opened"
 SUGGEST_COFFEE_CHAT_MODAL = "suggest_coffee_chat_modal"
 SELECT_RANDOM_COFFEE_CHAT_MODAL = "select_random_coffee_chat_modal"
+SELECT_GROUP_COFFEE_CHAT_MODAL = "select_group_coffee_chat_modal"
 SUGGEST_RANDOM_COFFEE_CHAT_MODAL = "suggest_random_coffee_chat_modal"
+SUGGEST_GROUP_COFFEE_CHAT_MODAL = "suggest_group_coffee_chat_modal"
 
 SUGGEST_COFFEE_CHAT_BUTTON = "suggest_coffee_chat_button"
 RANDOM_COFFEE_CHAT_BUTTON = "random_coffee_chat_button"
+GROUP_COFFEE_CHAT_BUTTON = "group_coffee_chat_button"
 ROLL_BUTTON = "roll_button"
 COFFEE_CHAT_COMPLETE = "coffee_chat_complete"
+VIEW_MESSAGE_BUTTON = "view_message_button"

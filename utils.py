@@ -6,3 +6,7 @@ def convert_unix_to_kst(unix_timestamp: float) -> str:
     kst = timezone(timedelta(hours=9))
     dt_kst = dt_utc.astimezone(kst)
     return dt_kst.strftime("%Y년 %m월 %d일 %H시 %M분")
+
+
+def now_kst() -> datetime:
+    return datetime.now(timezone(timedelta(hours=9)))

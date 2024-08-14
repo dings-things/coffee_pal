@@ -1,10 +1,11 @@
 from datetime import datetime
-from enum import Enum
 import json
 import os
 import uuid
-
 from pydantic import BaseModel
+from filelock import FileLock
+
+import utils
 
 UTF8_ENCODING = "utf-8"
 
@@ -29,9 +30,12 @@ class ReservationEntity(BaseModel):
 
 
 class FileDB:
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, file_lock_path: str):
         self.file_path = file_path
+        self.lock_path = file_lock_path
+        self.lock = FileLock(self.lock_path)
         self.data: dict[str, list[ReservationEntity]] = self.load()
+        self.reload()
 
     def load(self) -> dict[str, list[ReservationEntity]]:
         if not os.path.exists(self.file_path):
@@ -47,28 +51,33 @@ class FileDB:
             return data
 
     def save(self):
-        with open(self.file_path, "w", encoding=UTF8_ENCODING) as f:
-            json.dump(
-                {
-                    user_id: [res.to_dict() for res in reservations]
-                    for user_id, reservations in self.data.items()
-                },
-                f,
-                ensure_ascii=False,
-                indent=4,
-            )
+        with self.lock:
+            try:
+                with open(self.file_path, "w", encoding=UTF8_ENCODING) as f:
+                    json.dump(
+                        {
+                            user_id: [res.to_dict() for res in reservations]
+                            for user_id, reservations in self.data.items()
+                        },
+                        f,
+                        ensure_ascii=False,
+                        indent=4,
+                    )
+                print(f"Data saved successfully to {self.file_path}")
+            except Exception as e:
+                print(f"Error saving file: {e}")
 
-    def add(self, reservation: ReservationEntity):
-        if reservation.target_id not in self.data:
-            self.data[reservation.target_id] = []
-        self.data[reservation.target_id].append(reservation)
+    def add(self, user_id: str, reservation: ReservationEntity):
+        if user_id not in self.data:
+            self.data[user_id] = []
+        self.data[user_id].append(reservation)
         self.save()
 
     def get_reservations_by_user_id(self, user_id: str) -> list[ReservationEntity]:
         if user_id not in self.data:
             return []
 
-        now = datetime.now()
+        now = utils.now_kst()
         # 현재 시간보다 이전인 항목 제거
         self.data[user_id] = [res for res in self.data[user_id] if res.date > now]
         # 시간순으로 정렬
@@ -84,7 +93,7 @@ class FileDB:
         self.save()
 
     def reload(self):
-        now = datetime.now()
+        now = utils.now_kst()
         new_data = {
             user_id: [res for res in reservations if res.date > now]
             for user_id, reservations in self.data.items()

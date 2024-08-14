@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     SLACK_BOT_TOKEN: str
     SLACK_USER_TOKEN: str
     FILE_PATH: str
+    FILE_LOCK_PATH: str
 
     class Config:
         env_file = ".env"
