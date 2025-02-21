@@ -24,7 +24,7 @@ ssl_context.verify_mode = ssl.CERT_NONE
 slack_client = WebClient(token=settings.SLACK_BOT_TOKEN, ssl=ssl_context)
 
 app = App(client=slack_client)
-db = FileDB(settings.FILE_PATH, settings.FILE_LOCK_PATH)
+db = FileDB(settings.FILE_PATH)
 scheduler = Scheduler(db, "23:59:59")
 logger = logging.getLogger(__name__)
 
@@ -307,12 +307,12 @@ def handle_coffee_chat_complete(ack, body, client: WebClient, respond: AsyncResp
 
         sender_reservation = ReservationEntity(
             target_id=receiver,
-            date=selected_date_dt,
+            timestamp=selected_date_dt.timestamp(),
             message=body["message"]["blocks"][3],
         )
         receiver_reservation = ReservationEntity(
             target_id=sender,
-            date=selected_date_dt,
+            timestamp=selected_date_dt.timestamp(),
             message=body["message"]["blocks"][3],
         )
         db.add(sender, sender_reservation)
@@ -353,7 +353,7 @@ def handle_view_message_button(ack, body, client: WebClient):
     if reservation:
         # 메시지를 보여주는 view 생성
         view = templates.views.MESSAGE_DETAIL(
-            reservation.target_id, reservation.date, reservation.message
+            reservation.target_id, reservation.timestamp, reservation.message
         )
 
         # View를 열기

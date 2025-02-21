@@ -1,3 +1,4 @@
+from datetime import datetime
 import endpoints
 
 
@@ -91,7 +92,7 @@ HOME_OPENED = lambda reservation_blocks=None: {
     ),
 }
 
-MESSAGE_DETAIL = lambda target, date, message: {
+MESSAGE_DETAIL = lambda target, timestamp, message: {
     "type": "modal",
     "callback_id": "message_view",
     "title": {"type": "plain_text", "text": "메시지 보기"},
@@ -107,7 +108,7 @@ MESSAGE_DETAIL = lambda target, date, message: {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*일시*:\n{date.strftime('%Y년 %m월 %d일 %H시 %M분')}",
+                "text": f"*일시*:\n{datetime.fromtimestamp(timestamp).strftime('%Y년 %m월 %d일 %H시 %M분')}",
             },
         },
         message,

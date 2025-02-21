@@ -1,6 +1,7 @@
 import json
 
 import endpoints
+import utils
 
 RESERVATION_BLOCK = lambda reservations: [
     {
@@ -9,7 +10,7 @@ RESERVATION_BLOCK = lambda reservations: [
             {"type": "mrkdwn", "text": f"*예약자*:\n<@{reservation.target_id}>"},
             {
                 "type": "mrkdwn",
-                "text": f"*일시*:\n{reservation.date.strftime('%Y년 %m월 %d일 %H시 %M분')}",
+                "text": f"*일시*:\n{utils.convert_unix_to_kst(reservation.timestamp)}",
             },
         ],
         "accessory": {
